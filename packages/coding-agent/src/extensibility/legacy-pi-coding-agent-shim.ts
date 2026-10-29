@@ -31,6 +31,7 @@ import {
 } from "@oh-my-pi/pi-agent-core/compaction/messages";
 import { type AuthCredential, SqliteAuthCredentialStore, type TSchema } from "@oh-my-pi/pi-ai";
 import { piEscapeRegexLiteral, piJoinPath } from "@oh-my-pi/pi-ai/providers/cursor-pi-args";
+import { editDiffString, type EditDiffResult, structuredPatchHunks } from "@oh-my-pi/pi-natives";
 import { getKeybindings, type Keybinding, Text } from "@oh-my-pi/pi-tui";
 import {
 	escapeXmlText,
@@ -1754,4 +1755,39 @@ export function formatSkillsForPrompt(
 	});
 	// Upstream returns the block with two leading newlines to append to a system prompt.
 	return `\n\n${block.trimEnd()}`;
+}
+
+export type { EditDiffResult } from "@oh-my-pi/pi-natives";
+
+/**
+ * Legacy `generateDiffString(oldContent, newContent, contextLinesOrPath?)` export.
+ *
+ * Upstream Pi's `@earendil-works/pi-coding-agent` exports `generateDiffString`
+ * from its package root (via `./core/tools/edit-diff.ts`). In omp, native diffing
+ * is implemented by `@oh-my-pi/pi-natives` (`editDiffString`).
+ */
+export function generateDiffString(
+	oldContent: string,
+	newContent: string,
+	contextLinesOrPath?: number | string | null,
+): EditDiffResult {
+	const path = typeof contextLinesOrPath === "string" ? contextLinesOrPath : undefined;
+	return editDiffString(oldContent, newContent, path);
+}
+
+/**
+ * Legacy `generateUnifiedPatch(path, oldContent, newContent, contextLines?)` export.
+ *
+ * Upstream Pi's `@earendil-works/pi-coding-agent` exports `generateUnifiedPatch`
+ * from its package root (via `./core/tools/edit-diff.ts`). In omp, hunk computation
+ * is implemented by `@oh-my-pi/pi-natives` (`structuredPatchHunks`).
+ */
+export function generateUnifiedPatch(path: string, oldContent: string, newContent: string, contextLines = 4): string {
+	const hunks = structuredPatchHunks(oldContent, newContent, Math.max(0, Math.floor(contextLines)));
+	if (hunks.length === 0) return "";
+	const lines = [`--- ${path}`, `+++ ${path}`];
+	for (const hunk of hunks) {
+		lines.push(`@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@`, ...hunk.lines);
+	}
+	return `${lines.join("\n")}\n`;
 }

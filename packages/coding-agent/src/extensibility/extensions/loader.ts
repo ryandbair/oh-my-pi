@@ -43,6 +43,7 @@ import { notifyTranscriptPresentersChanged } from "@oh-my-pi/pi-tui/chat/transcr
 import type {
 	AssistantTextRenderer,
 	AssistantThinkingRenderer,
+	EntryRenderer,
 	Extension,
 	ExtensionAPI,
 	ExtensionContext,
@@ -302,6 +303,12 @@ class ConcreteExtensionAPI implements ExtensionAPI, IExtensionRuntime {
 
 	registerMessageRenderer<T>(customType: string, renderer: MessageRenderer<T>): void {
 		this.extension.messageRenderers.set(customType, renderer as MessageRenderer);
+	}
+
+	registerEntryRenderer<T>(customType: string, renderer: EntryRenderer<T>): void {
+		const adapted: MessageRenderer<T> = (message, options, theme) =>
+			renderer({ ...message, data: message.details, type: "custom" }, options, theme);
+		this.extension.messageRenderers.set(customType, adapted as MessageRenderer);
 	}
 
 	registerAssistantThinkingRenderer(renderer: AssistantThinkingRenderer): void {

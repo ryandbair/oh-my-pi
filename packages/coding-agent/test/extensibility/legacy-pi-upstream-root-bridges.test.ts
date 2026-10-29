@@ -103,4 +103,47 @@ describe("legacy shim upstream-root bridges", () => {
 			mutable.imageProtocol = originalProtocol;
 		}
 	});
+
+	it("generateDiffString computes numbered diffs and distinguishes numeric contextLines from file path", () => {
+		const oldText = [
+			"def demo():",
+			"    a = 1",
+			"    b = 2",
+			"    c = 3",
+			"    d = 4",
+			"    e = 5",
+			"    return a",
+			"",
+		].join("\n");
+		const newText = [
+			"def demo():",
+			"    a = 1",
+			"    b = 2",
+			"    c = 3",
+			"    d = 4",
+			"    e = 5",
+			"    return b",
+			"",
+		].join("\n");
+
+		// Numeric contextLines (upstream Pi signature) must not trigger a NAPI TypeError
+		// and omits language-aware enclosing block headers outside the context window.
+		const withContextNumber = caShim.generateDiffString(oldText, newText, 4);
+		expect(withContextNumber.diff).toContain("-7|    return a");
+		expect(withContextNumber.diff).toContain("+7|    return b");
+		expect(withContextNumber.diff).not.toContain(" 1|def demo():");
+		expect(withContextNumber.firstChangedLine).toBe(7);
+
+		// String path forwards to editDiffString for tree-sitter enclosing block context.
+		const withPath = caShim.generateDiffString(oldText, newText, "demo.py");
+		expect(withPath.diff).toContain(" 1|def demo():");
+		expect(withPath.diff).toContain("-7|    return a");
+		expect(withPath.diff).toContain("+7|    return b");
+	});
+
+	it("generateUnifiedPatch formats unified diff hunks and returns empty string when unchanged", () => {
+		const patch = caShim.generateUnifiedPatch("demo.txt", "foo\nbar\n", "foo\nbaz\n");
+		expect(patch).toBe(["--- demo.txt", "+++ demo.txt", "@@ -1,2 +1,2 @@", " foo", "-bar", "+baz", ""].join("\n"));
+		expect(caShim.generateUnifiedPatch("demo.txt", "same\n", "same\n")).toBe("");
+	});
 });

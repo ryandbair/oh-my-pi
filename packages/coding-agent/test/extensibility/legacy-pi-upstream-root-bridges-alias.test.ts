@@ -71,6 +71,29 @@ describe("legacy aliased-scope roots resolve the upstream 1.1.0 bridges", () => 
 		expect(loaded.miss).toBeNull();
 	});
 
+	it("resolves generateDiffString and generateUnifiedPatch from aliased coding-agent roots", async () => {
+		const entry = await writeFixtureExtension(
+			[
+				'import { generateDiffString, generateUnifiedPatch, type EditDiffResult } from "@earendil-works/pi-coding-agent";',
+				'import { generateDiffString as marioDiff } from "@mariozechner/pi-coding-agent";',
+				'export const diffResult: EditDiffResult = generateDiffString("hello\\n", "world\\n");',
+				'export const marioResult: EditDiffResult = marioDiff("mario\\n", "luigi\\n");',
+				'export const patchResult = generateUnifiedPatch("test.txt", "old\\n", "new\\n");',
+			].join("\n"),
+		);
+		const loaded = (await loadLegacyPiModule(entry)) as {
+			diffResult: { diff: string; firstChangedLine?: number };
+			marioResult: { diff: string; firstChangedLine?: number };
+			patchResult: string;
+		};
+		expect(loaded.diffResult.diff).toContain("-1|hello");
+		expect(loaded.diffResult.diff).toContain("+1|world");
+		expect(loaded.marioResult.diff).toContain("-1|mario");
+		expect(loaded.marioResult.diff).toContain("+1|luigi");
+		expect(loaded.patchResult).toContain("--- test.txt");
+		expect(loaded.patchResult).toContain("+new");
+	});
+
 	it("resolves compositeTuiLine from the @earendil-works/pi-tui root", async () => {
 		const entry = await writeFixtureExtension(
 			[

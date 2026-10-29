@@ -12,6 +12,8 @@ import {
 } from "@oh-my-pi/pi-coding-agent/extensibility/extensions/loader";
 import { discoverSessionExtensionPaths } from "@oh-my-pi/pi-coding-agent/sdk";
 import { getProjectAgentDir, TempDir } from "@oh-my-pi/pi-utils";
+import type { CustomMessage } from "@oh-my-pi/pi-tui/chat/messages";
+import type { Theme } from "@oh-my-pi/pi-tui";
 import { filterUserScoped } from "./utils/filter-user-extensions";
 
 describe("extensions discovery", () => {
@@ -630,6 +632,35 @@ describe("extensions discovery", () => {
 		expect(result.errors).toHaveLength(0);
 		expect(result.extensions).toHaveLength(1);
 		expect(result.extensions[0].messageRenderers.has("my-custom-type")).toBe(true);
+	});
+
+	it("registers legacy entry renderers via registerEntryRenderer and adapts entry.data and entry.type", async () => {
+		const extCode = `
+			export default function(pi) {
+				pi.registerEntryRenderer("legacy-entry-type", (entry, options) => ({
+					render: () => [\`\${entry.type}:\${entry.data?.testVal}:\${options.expanded}\`],
+					invalidate: () => {},
+				}));
+			}
+		`;
+		fs.writeFileSync(path.join(extensionsDir, "with-legacy-renderer.ts"), extCode);
+
+		const result = await discoverForTest();
+
+		expect(result.errors).toHaveLength(0);
+		expect(result.extensions).toHaveLength(1);
+		const renderer = result.extensions[0].messageRenderers.get("legacy-entry-type");
+		const message: CustomMessage<{ testVal: number }> = {
+			role: "custom",
+			customType: "legacy-entry-type",
+			content: "",
+			display: true,
+			timestamp: Date.now(),
+			details: { testVal: 42 },
+		};
+		const theme = {} as unknown as Theme;
+		expect(renderer?.(message, { expanded: true }, theme)?.render(80)).toEqual(["custom:42:true"]);
+		expect(renderer?.(message, { expanded: false }, theme)?.render(80)).toEqual(["custom:42:false"]);
 	});
 
 	it("reports error when extension throws during initialization", async () => {

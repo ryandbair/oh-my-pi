@@ -12,6 +12,7 @@ import {
 	type ExtensionUiComponent,
 	type ExtensionUiComponentFactory,
 	type ExtensionWidgetContent,
+	type MessageRenderOptions,
 	type MessageRenderer,
 	type AssistantThinkingRenderer,
 	type AssistantTextRenderer,
@@ -99,7 +100,7 @@ import type { NativeToolView } from "@oh-my-pi/pi-tui/tools/renderer";
 import type { AsyncJobSnapshot, SendUserMessageOptions } from "../../session/agent-session";
 import type { EphemeralTurnOptions, EphemeralTurnResult } from "../../session/agent-session-types";
 import type { CompactMode } from "../../session/compact-modes";
-import type { CustomMessagePayload } from "../../session/messages";
+import type { CustomMessage, CustomMessagePayload } from "../../session/messages";
 import type { ReadonlySessionManager, SessionManager } from "../../session/session-manager";
 import type { BashToolInput, GlobToolInput, GrepToolInput, ReadToolInput, WriteToolInput } from "../../tools";
 import type { GlobToolDetails } from "@oh-my-pi/pi-tui/tools/glob";
@@ -1843,6 +1844,13 @@ export type ShortcutConflict =
 	| { kind: "keybinding"; keybindings: Keybinding[] }
 	| { kind: "extension"; extensionPath: string };
 
+/** Legacy upstream Pi entry renderer signature (`pi.registerEntryRenderer`). */
+export type EntryRenderer<T = unknown> = (
+	entry: CustomMessage<T> & { type: "custom"; data?: T },
+	options: MessageRenderOptions,
+	theme: Theme,
+) => Component | undefined;
+
 /**
  * ExtensionAPI passed to extension factory functions.
  *
@@ -2072,6 +2080,9 @@ export interface ExtensionAPI {
 
 	/** Register a custom renderer for CustomMessageEntry. */
 	registerMessageRenderer<T = unknown>(customType: string, renderer: MessageRenderer<T>): void;
+
+	/** Legacy alias for `registerMessageRenderer` from upstream Pi. */
+	registerEntryRenderer<T = unknown>(customType: string, renderer: EntryRenderer<T>): void;
 
 	/** Register a renderer for assistant thinking blocks. Rendered after the original thinking text. */
 	registerAssistantThinkingRenderer(renderer: AssistantThinkingRenderer): void;
